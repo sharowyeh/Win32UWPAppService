@@ -3,3 +3,12 @@
 "Release" 
 "bin" 
 "obj" 
+/.vs/Win32UWPAppService/v15
+/AppServiceComponent/bin/Debug
+/AppServiceComponent/obj/Debug
+/AppServiceComponent/obj
+/AppServiceProvider/bin/x64/Debug
+/AppServiceProvider/obj/x64/Debug
+/AppServiceProvider/obj
+/Win32WPFClient/bin/Debug
+/Win32WPFClient/obj/Debug
