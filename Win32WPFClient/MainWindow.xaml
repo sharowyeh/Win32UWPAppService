@@ -1,0 +1,34 @@
+﻿<Window x:Class="Win32WPFClient.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Win32WPFClient"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="350" Width="525">
+    <Grid>
+        <StackPanel Orientation="Vertical" Margin="20">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="service name: "/>
+                <TextBox x:Name="serviceNameText" Text="com.msi.spb.appservice" IsTabStop="False"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="package name: "/>
+                <TextBox x:Name="packageNameText" Text="36bcb093-0e11-4114-a4fe-25fc6238d827_7wtyq8e5t5wne" IsTabStop="False"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="status: "/>
+                <TextBlock x:Name="statusText"/>
+            </StackPanel>
+            <Button x:Name="cleanupButton" Content="cleanup data" HorizontalAlignment="Left"/>
+            <TextBlock Text="named client to app service: "/>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="name: "/>
+                <TextBox x:Name="inputText" Text="john smith" Width="150"/>
+                <Button x:Name="sendButton" Content="send"/>
+            </StackPanel>
+            <TextBlock Text="response: "/>
+            <TextBlock x:Name="responseText"/>
+        </StackPanel>
+    </Grid>
+</Window>
