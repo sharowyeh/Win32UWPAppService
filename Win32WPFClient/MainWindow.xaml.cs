@@ -36,8 +36,9 @@ namespace Win32WPFClient
             //    await OpenAppServiceConnection();
             //});
             
-            sendButton.Click += SendButton_Click;
-            cleanupButton.Click += CleanupButton_Click;
+            setButton.Click += SetButton_Click;
+            getButton.Click += GetButton_Click;
+            cleanButton.Click += CleanButton_Click;
         }
 
         /// <summary>
@@ -87,7 +88,7 @@ namespace Win32WPFClient
                 return null;
         }
 
-        private async void SendButton_Click(object sender, RoutedEventArgs e)
+        private async void SetButton_Click(object sender, RoutedEventArgs e)
         {
             if (inputText.Text.Length == 0)
                 return;
@@ -98,28 +99,38 @@ namespace Win32WPFClient
             client.Add("name", inputText.Text);
             client.Add("timestamp", DateTime.Now.ToString());
             var message = new ValueSet();
-            message.Add("action", "add_client");
+            message.Add("action", "set_client");
+            message.Add("container_name", "data_store");
             message.Add("client", client);
 
             var response = await SendMessageToAppService(message);
-            if (response != null)
+        }
+
+        private async void GetButton_Click(object sender, RoutedEventArgs e)
+        {
+            var message = new ValueSet();
+            message.Add("action", "get_client");
+            message.Add("container_name", "data_store");
+
+            var response = await SendMessageToAppService(message);
+            if (response != null && response.ContainsKey("status") && response["status"].Equals("ok"))
             {
                 var chunk = "";
                 var list = response["list"] as ValueSet;
-                foreach (var item in list)
+                foreach (var pair in list)
                 {
-                    var item_set = item.Value as ValueSet;
-                    chunk += item_set["assembly"].ToString() + " name: " + item_set["name"].ToString() + " platform: " + item_set["platform"].ToString() + " at " + item_set["timestamp"].ToString() + "\n";
+                    var item = pair.Value as ValueSet;
+                    chunk += pair.Key + " name: " + item["name"].ToString() + " platform: " + item["platform"].ToString() + " at " + item["timestamp"].ToString() + "\n";
                 }
                 responseText.Text = chunk;
             }
-
         }
 
-        private async void CleanupButton_Click(object sender, RoutedEventArgs e)
+        private async void CleanButton_Click(object sender, RoutedEventArgs e)
         {
             var message = new ValueSet();
-            message.Add("action", "cleanup_data");
+            message.Add("action", "clean_data");
+            message.Add("container_name", "data_store");
             var response = await SendMessageToAppService(message);
         }
     }

@@ -33,34 +33,38 @@ namespace AppServiceProvider
         }
 
         /// <summary>
-        /// For in-process app service
-        /// </summary>
-        public static AppServiceComponent.AppServiceTask ServiceTask;
-        /// <summary>
-        /// For in-process app service
+        /// startup app service when the background task activated from other applications
+        /// https://docs.microsoft.com/en-us/windows/uwp/launch-resume/convert-app-service-in-process
         /// </summary>
         /// <param name="args"></param>
         protected override void OnBackgroundActivated(BackgroundActivatedEventArgs args)
         {
             base.OnBackgroundActivated(args);
-            ServiceTask = new AppServiceComponent.AppServiceTask();
-            ServiceTask.RequestResponsed += async (message, response) =>
-            {
-                await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.High, async () =>
-                {
-                    var action = message["action"];
-                    if (action.Equals("add_client"))
-                    {
-                        var client = message["client"] as ValueSet;
-                        var list = response["list"] as ValueSet;
-                        var content = "message:" + message["action"].ToString() + " " + client["assembly"].ToString() + " " + client["platform"].ToString() + "\r\n";
-                        content += "response:" + response["action"].ToString() + " " + list.Keys.Count.ToString();
-                        Windows.UI.Popups.MessageDialog dialog = new Windows.UI.Popups.MessageDialog(content);
-                        await dialog.ShowAsync();
-                    }
-                });
-            };
-            ServiceTask.Run(args.TaskInstance);
+            /// code block is moved to mainpage.xaml.cs for UI display
+            //var ServiceTask = new AppServiceComponent.AppServiceTask();
+            //ServiceTask.RequestResponsed += async (message, response) =>
+            //{
+            //    await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.High, async () =>
+            //    {
+            //        var message_content = "message:" + message["action"] as string;
+            //        var response_content = "response:" + response["status"] as string;
+            //        if (message["action"].Equals("set_client"))
+            //        {
+            //            var client = message["client"] as ValueSet;
+            //            message_content += " " + client["assembly"].ToString() + " " + client["platform"].ToString();
+            //        }
+            //        if (message["action"].Equals("get_client"))
+            //        {
+            //            var list = response["list"] as ValueSet;
+            //            response_content += " " + list.Keys.Count.ToString() + "=>";
+            //            foreach (var key in list.Keys)
+            //                response_content += key + ",";
+            //        }
+            //        Windows.UI.Popups.MessageDialog dialog = new Windows.UI.Popups.MessageDialog(message_content + "\r\n" + response_content);
+            //        await dialog.ShowAsync();
+            //    });
+            //};
+            //ServiceTask.Run(args.TaskInstance);
         }
 
         /// <summary>

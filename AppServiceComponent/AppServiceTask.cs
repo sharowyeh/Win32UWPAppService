@@ -17,7 +17,6 @@ namespace AppServiceComponent
     public sealed class AppServiceTask : IBackgroundTask
     {
         private BackgroundTaskDeferral backgroundTaskDeferral;
-        private static ApplicationDataContainer dataContainer = null;
 
         public event TypedEventHandler<ValueSet, ValueSet> RequestResponsed;
 
@@ -29,16 +28,16 @@ namespace AppServiceComponent
             details.AppServiceConnection.RequestReceived += AppServiceConnection_RequestReceived;
         }
 
-        private ApplicationDataContainer GetDataContainer()
+        private ApplicationDataContainer GetDataContainer(string name)
         {
             try
             {
                 var settings = ApplicationData.Current.LocalSettings;
                 ApplicationDataContainer container = null;
-                if (settings.Containers.ContainsKey("data_store"))
-                    container = settings.Containers["data_store"];
+                if (settings.Containers.ContainsKey(name))
+                    container = settings.Containers[name];
                 else
-                    container = settings.CreateContainer("data_store", ApplicationDataCreateDisposition.Always);
+                    container = settings.CreateContainer(name, ApplicationDataCreateDisposition.Always);
                 return container;
             }
             catch (Exception e)
@@ -47,13 +46,13 @@ namespace AppServiceComponent
             }
         }
 
-        private void CleanupDataContainer()
+        private void CleanDataContainer(string name)
         {
             try
             {
                 var settings = ApplicationData.Current.LocalSettings;
-                if (settings.Containers.ContainsKey("data_store"))
-                    settings.Containers["data_store"].Values.Clear();
+                if (settings.Containers.ContainsKey(name))
+                    settings.Containers[name].Values.Clear();
             }
             catch (Exception e)
             {
@@ -70,29 +69,27 @@ namespace AppServiceComponent
 
             try
             {
-                if (dataContainer == null)
-                    dataContainer = GetDataContainer();
-                
                 var action = message["action"] as string;
                 switch (action)
                 {
-                    case "add_client":
-                        response = Response_AddClient(message);
+                    case "set_client":
+                        response = ResponseSetClient(message);
                         break;
-                    case "cleanup_data":
-                        CleanupDataContainer();
-                        dataContainer = null;
-                        response = Response_Empty();
+                    case "get_client":
+                        response = ResponseGetClient(message);
+                        break;
+                    case "clean_data":
+                        response = ResponseCleanData(message);
                         break;
                     default:
-                        response = Response_Exception("invalid action");
+                        throw new Exception("Invalid action");
                         break;
                 }
 
             }
             catch (Exception e)
             {
-                response = Response_Exception(e.Message + "\n" + e.StackTrace);
+                response = ResponseException(e.Message + "\n" + e.StackTrace);
             }
             
             await args.Request.SendResponseAsync(response);
@@ -103,49 +100,84 @@ namespace AppServiceComponent
                 RequestResponsed(message, response);
         }
 
-        private ValueSet Response_Empty()
+        private ValueSet ResponseException(string error)
         {
             var response = new ValueSet();
-            response.Add("status", "action completed");
-            return response;
-        }
-
-        private ValueSet Response_Exception(string error)
-        {
-            var response = new ValueSet();
+            response.Add("status", "error");
             response.Add("exception", error);
             return response;
         }
 
-        private ValueSet Response_AddClient(ValueSet message)
+        private ValueSet ResponseCleanData(ValueSet message)
         {
-            var client = message["client"] as ValueSet;
-            var assembly = client["assembly"] as string;
-            var platform = client["platform"] as string;
-            var name = client["name"] as string;
-            var timestamp = client["timestamp"] as string;
-
-            var composite = new ApplicationDataCompositeValue();
-            composite["assembly"] = assembly;
-            composite["platform"] = platform;
-            composite["name"] = name;
-            composite["timestamp"] = timestamp;
-            dataContainer.Values[assembly] = composite;
-
             var response = new ValueSet();
-            var list = new ValueSet();
-            foreach (var item in dataContainer.Values)
+            try
             {
-                var item_composite = item.Value as ApplicationDataCompositeValue;
-                var data = new ValueSet();
-                data.Add("assembly", item_composite["assembly"]);
-                data.Add("platform", item_composite["platform"]);
-                data.Add("name", item_composite["name"]);
-                data.Add("timestamp", item_composite["timestamp"]);
-                list.Add(data["assembly"].ToString(), data);
+                var name = message["container_name"] as string;
+                CleanDataContainer(name);
+                response.Add("status", "ok");
             }
-            response.Add("action", "list_clients");
-            response.Add("list", list);
+            catch (Exception e)
+            {
+                response = ResponseException(e.Message + "\n" + e.StackTrace);
+            }
+            return response;
+        }
+
+        private ValueSet ResponseSetClient(ValueSet message)
+        {
+            var response = new ValueSet();
+            try
+            {
+                var container_name = message["container_name"] as string;
+                var container = GetDataContainer(container_name);
+
+                var client = message["client"] as ValueSet;
+                var composite = new ApplicationDataCompositeValue();
+                composite["assembly"] = client["assembly"];
+                composite["platform"] = client["platform"];
+                composite["name"] = client["name"];
+                composite["timestamp"] = client["timestamp"];
+
+                var key = client["assembly"] as string;
+                container.Values[key] = composite;
+
+                response.Add("status", "ok");
+            }
+            catch (Exception e)
+            {
+                response = ResponseException(e.Message + "\n" + e.StackTrace);
+            }
+            return response;
+        }
+
+        private ValueSet ResponseGetClient(ValueSet message)
+        {
+            var response = new ValueSet();
+            try
+            {
+                var container_name = message["container_name"] as string;
+                var container = GetDataContainer(container_name);
+
+                var list = new ValueSet();
+                foreach (var pair in container.Values)
+                {
+                    var composite = pair.Value as ApplicationDataCompositeValue;
+                    var client = new ValueSet();
+                    client.Add("assembly", composite["assembly"]);
+                    client.Add("platform", composite["platform"]);
+                    client.Add("name", composite["name"]);
+                    client.Add("timestamp", composite["timestamp"]);
+                    list.Add(pair.Key, client);
+                }
+
+                response.Add("status", "ok");
+                response.Add("list", list);
+            }
+            catch (Exception e)
+            {
+                response = ResponseException(e.Message + "\n" + e.StackTrace);
+            }
             return response;
         }
 

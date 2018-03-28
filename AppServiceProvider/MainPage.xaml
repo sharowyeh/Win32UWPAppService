@@ -21,14 +21,17 @@
                 <TextBlock Text="status: "/>
                 <TextBlock x:Name="statusText"/>
             </StackPanel>
-            <Button x:Name="cleanupButton" Content="cleanup data"/>
+            <Button x:Name="cleanButton" Content="cleanup data"/>
             <TextBlock Text="named client to app service: "/>
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="name: "/>
                 <TextBox x:Name="inputText" Text="jane doe" Width="150"/>
-                <Button x:Name="sendButton" Content="send"/>
+                <Button x:Name="setButton" Content="set"/>
             </StackPanel>
-            <TextBlock Text="response: "/>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="response: "/>
+                <Button x:Name="getButton" Content="get"/>
+            </StackPanel>
             <TextBlock x:Name="responseText"/>
         </StackPanel>
     </Grid>
