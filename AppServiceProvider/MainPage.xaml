@@ -11,7 +11,7 @@
         <StackPanel Orientation="Vertical" Margin="20">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="service name: "/>
-                <TextBox x:Name="serviceNameText" Text="com.msi.spb.appservice" IsTabStop="False"/>
+                <TextBox x:Name="serviceNameText" Text="com.msi.spb.appservice.inproc" IsTabStop="False"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="package name: "/>
@@ -33,6 +33,8 @@
                 <Button x:Name="getButton" Content="get"/>
             </StackPanel>
             <TextBlock x:Name="responseText"/>
+            <TextBlock Text="activation:"/>
+            <TextBlock x:Name="activationText"/>
         </StackPanel>
     </Grid>
 </Page>

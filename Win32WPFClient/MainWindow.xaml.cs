@@ -48,7 +48,7 @@ namespace Win32WPFClient
         public async Task OpenAppServiceConnection()
         {
             serviceConnection = new AppServiceConnection();
-            serviceConnection.AppServiceName = "com.msi.spb.appservice";
+            serviceConnection.AppServiceName = "com.msi.spb.appservice.outproc";
             serviceConnection.PackageFamilyName = "36bcb093-0e11-4114-a4fe-25fc6238d827_7wtyq8e5t5wne";
             serviceConnection.ServiceClosed += async (sender, e) =>
             {
@@ -85,7 +85,10 @@ namespace Win32WPFClient
             if (result.Status == AppServiceResponseStatus.Success)
                 return result.Message;
             else
+            {
+                serviceStatus = AppServiceConnectionStatus.Unknown;
                 return null;
+            }
         }
 
         private async void SetButton_Click(object sender, RoutedEventArgs e)
@@ -93,34 +96,46 @@ namespace Win32WPFClient
             if (inputText.Text.Length == 0)
                 return;
 
-            var client = new ValueSet();
-            client.Add("assembly", System.Reflection.Assembly.GetExecutingAssembly().FullName.Split(',')[0]);
-            client.Add("platform", "wpf");
-            client.Add("name", inputText.Text);
-            client.Add("timestamp", DateTime.Now.ToString());
+            //var client = new ValueSet();
+            //client.Add("assembly", System.Reflection.Assembly.GetExecutingAssembly().FullName.Split(',')[0]);
+            //client.Add("platform", "wpf");
+            //client.Add("name", inputText.Text);
+            //client.Add("timestamp", DateTime.Now.ToString());
+            //var message = new ValueSet();
+            //message.Add("action", "set_client");
+            //message.Add("container_name", "data_store");
+            //message.Add("client", client);
             var message = new ValueSet();
-            message.Add("action", "set_client");
-            message.Add("container_name", "data_store");
-            message.Add("client", client);
+            message.Add("action", "set_caller");
+            message.Add("caller_id", "WPF-" + System.Reflection.Assembly.GetExecutingAssembly().FullName.Split(',')[0]);
+            message.Add("timestamp", DateTime.Now.ToString());
 
             var response = await SendMessageToAppService(message);
         }
 
         private async void GetButton_Click(object sender, RoutedEventArgs e)
         {
+            //var message = new ValueSet();
+            //message.Add("action", "get_client");
+            //message.Add("container_name", "data_store");
             var message = new ValueSet();
-            message.Add("action", "get_client");
-            message.Add("container_name", "data_store");
+            message.Add("action", "get_caller");
 
             var response = await SendMessageToAppService(message);
             if (response != null && response.ContainsKey("status") && response["status"].Equals("ok"))
             {
                 var chunk = "";
-                var list = response["list"] as ValueSet;
-                foreach (var pair in list)
+                //var list = response["list"] as ValueSet;
+                //foreach (var pair in list)
+                //{
+                //    var item = pair.Value as ValueSet;
+                //    chunk += pair.Key + " name: " + item["name"].ToString() + " platform: " + item["platform"].ToString() + " at " + item["timestamp"].ToString() + "\n";
+                //}
+                foreach (var pair in response)
                 {
-                    var item = pair.Value as ValueSet;
-                    chunk += pair.Key + " name: " + item["name"].ToString() + " platform: " + item["platform"].ToString() + " at " + item["timestamp"].ToString() + "\n";
+                    if (pair.Key.Equals("status"))
+                        continue;
+                    chunk += "caller: " + pair.Key + " timestamp: " + pair.Value.ToString() + "\n";
                 }
                 responseText.Text = chunk;
             }

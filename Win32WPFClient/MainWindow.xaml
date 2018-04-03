@@ -10,7 +10,7 @@
         <StackPanel Orientation="Vertical" Margin="20">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="service name: "/>
-                <TextBox x:Name="serviceNameText" Text="com.msi.spb.appservice" IsTabStop="False"/>
+                <TextBox x:Name="serviceNameText" Text="com.msi.spb.appservice.outproc" IsTabStop="False"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="package name: "/>

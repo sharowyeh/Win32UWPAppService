@@ -1,4 +1,5 @@
-﻿using System;
+﻿using AppServiceComponent;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -25,94 +26,61 @@ namespace AppServiceProvider
     /// </summary>
     public sealed partial class MainPage : Page
     {
-        private AppServiceConnectionStatus serviceStatus = AppServiceConnectionStatus.Unknown;
-        private AppServiceConnection serviceConnection = null;
+        private AppServiceClient serviceClient;
 
         public MainPage()
         {
             this.InitializeComponent();
-
-            var settings = ApplicationData.Current.LocalSettings;
-            if (settings.Containers.ContainsKey("data_store") == false)
-                settings.CreateContainer("data_store", ApplicationDataCreateDisposition.Always);
-
-            /// startup app service when the background task activated from other applications
+            
+            /// startup in-process app service when the background task activated from other applications
             /// https://docs.microsoft.com/en-us/windows/uwp/launch-resume/convert-app-service-in-process
             Windows.ApplicationModel.Core.CoreApplication.BackgroundActivated += (sender, args) =>
             {
                 var ServiceTask = new AppServiceComponent.AppServiceTask();
                 ServiceTask.RequestResponsed += async (message, response) =>
                 {
-                    await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.High, async () =>
+                    await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.High, () =>
                     {
                         var message_content = "message:" + message["action"] as string;
                         var response_content = "response:" + response["status"] as string;
-                        if (message["action"].Equals("set_client"))
-                        {
-                            var client = message["client"] as ValueSet;
-                            message_content += " " + client["assembly"].ToString() + " " + client["platform"].ToString();
-                        }
-                        if (message["action"].Equals("get_client"))
-                        {
-                            var list = response["list"] as ValueSet;
-                            response_content += " " + list.Keys.Count.ToString() + "=>";
-                            foreach (var key in list.Keys)
-                                response_content += key + ",";
-                        }
-                        Windows.UI.Popups.MessageDialog dialog = new Windows.UI.Popups.MessageDialog(message_content + "\r\n" + response_content);
-                        await dialog.ShowAsync();
+                        //if (message["action"].Equals("set_client"))
+                        //{
+                        //    var client = message["client"] as ValueSet;
+                        //    message_content += " " + client["assembly"].ToString() + " " + client["platform"].ToString();
+                        //}
+                        //if (message["action"].Equals("get_client"))
+                        //{
+                        //    var list = response["list"] as ValueSet;
+                        //    response_content += " " + list.Keys.Count.ToString() + "=>";
+                        //    foreach (var key in list.Keys)
+                        //        response_content += key + ",";
+                        //}
+                        activationText.Text = message_content + "\n" + response_content;
                     });
                 };
                 ServiceTask.Run(args.TaskInstance);
             };
 
+            /// Can use each of inproc and outproc looks what is different
+            serviceNameText.Text = "com.msi.spb.appservice.inproc";
             packageNameText.Text = Windows.ApplicationModel.Package.Current.Id.FamilyName;
-            
-            setButton.Click += SetButton_Click;
-            getButton.Click += GetButton_Click;
-            cleanButton.Click += CleanButton_Click;
-        }
-        
-        public async Task OpenAppServiceConnection()
-        {
-            serviceConnection = new AppServiceConnection();
-            serviceConnection.AppServiceName = serviceNameText.Text;
-            serviceConnection.PackageFamilyName = packageNameText.Text;
-            serviceConnection.ServiceClosed += async (sender, e) =>
+
+            serviceClient = new AppServiceClient(serviceNameText.Text, packageNameText.Text);
+            serviceClient.ConnectionClosed += async (sender, e) =>
             {
                 await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.High, new Windows.UI.Core.DispatchedHandler(() =>
                 {
-                    if (serviceConnection != null)
-                    {
-                        serviceStatus = AppServiceConnectionStatus.Unknown;
-                        serviceConnection.Dispose();
-                        serviceConnection = null;
-                    }
                     statusText.Text = "Closed";
                 }));
             };
-
-            serviceStatus = await serviceConnection.OpenAsync();
-            statusText.Text = serviceStatus.ToString();
-            if (serviceStatus != AppServiceConnectionStatus.Success)
+            serviceClient.ConnectionFailed += (sender, e) =>
             {
-                serviceConnection.Dispose();
-                serviceConnection = null;
-            }
-        }
-        
-        private async Task<ValueSet> SendMessageToAppService(ValueSet message)
-        {
-            if (serviceStatus != AppServiceConnectionStatus.Success)
-                await OpenAppServiceConnection();
-            if (serviceStatus != AppServiceConnectionStatus.Success)
-                return null;
+                statusText.Text = sender.ToString();
+            };
 
-            var result = await serviceConnection.SendMessageAsync(message);
-            if (result.Status == AppServiceResponseStatus.Success)
-                return result.Message;
-            else
-                return null;
+            setButton.Click += SetButton_Click;
+            getButton.Click += GetButton_Click;
+            cleanButton.Click += CleanButton_Click;
         }
 
         private async void SetButton_Click(object sender, RoutedEventArgs e)
@@ -120,34 +88,46 @@ namespace AppServiceProvider
             if (inputText.Text.Length == 0)
                 return;
 
-            var client = new ValueSet();
-            client.Add("assembly", Windows.ApplicationModel.Package.Current.DisplayName);
-            client.Add("platform", "uwp");
-            client.Add("name", inputText.Text);
-            client.Add("timestamp", DateTime.Now.ToString());
+            //var client = new ValueSet();
+            //client.Add("assembly", Windows.ApplicationModel.Package.Current.DisplayName);
+            //client.Add("platform", "uwp");
+            //client.Add("name", inputText.Text);
+            //client.Add("timestamp", DateTime.Now.ToString());
+            //var message = new ValueSet();
+            //message.Add("action", "set_client");
+            //message.Add("container_name", "data_store");
+            //message.Add("client", client);
             var message = new ValueSet();
-            message.Add("action", "set_client");
-            message.Add("container_name", "data_store");
-            message.Add("client", client);
+            message.Add("action", "set_caller");
+            message.Add("caller_id", "UWP-" + Windows.ApplicationModel.Package.Current.DisplayName);
+            message.Add("timestamp", DateTime.Now.ToString());
 
-            var response = await SendMessageToAppService(message);
+            var response = await serviceClient.OpenAndSendMessage(message);
         }
 
         private async void GetButton_Click(object sender, RoutedEventArgs e)
         {
+            //var message = new ValueSet();
+            //message.Add("action", "get_client");
+            //message.Add("container_name", "data_store");
             var message = new ValueSet();
-            message.Add("action", "get_client");
-            message.Add("container_name", "data_store");
-
-            var response = await SendMessageToAppService(message);
+            message.Add("action", "get_caller");
+            
+            var response = await serviceClient.OpenAndSendMessage(message);
             if (response != null && response.ContainsKey("status") && response["status"].Equals("ok"))
             {
                 var chunk = "";
-                var list = response["list"] as ValueSet;
-                foreach (var pair in list)
+                //var list = response["list"] as ValueSet;
+                //foreach (var pair in list)
+                //{
+                //    var item = pair.Value as ValueSet;
+                //    chunk += pair.Key + " name: " + item["name"].ToString() + " platform: " + item["platform"].ToString() + " at " + item["timestamp"].ToString() + "\n";
+                //}
+                foreach (var pair in response)
                 {
-                    var item = pair.Value as ValueSet;
-                    chunk += pair.Key + " name: " + item["name"].ToString() + " platform: " + item["platform"].ToString() + " at " + item["timestamp"].ToString() + "\n";
+                    if (pair.Key.Equals("status"))
+                        break;
+                    chunk += "caller: " + pair.Key + " timestamp: " + pair.Value.ToString() + "\n";
                 }
                 responseText.Text = chunk;
             }
@@ -158,7 +138,7 @@ namespace AppServiceProvider
             var message = new ValueSet();
             message.Add("action", "clean_data");
             message.Add("container_name", "data_store");
-            var response = await SendMessageToAppService(message);
+            var response = await serviceClient.OpenAndSendMessage(message);
         }
     }
 }

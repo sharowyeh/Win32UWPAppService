@@ -1,6 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
-         IgnorableNamespaces="uap mp">
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" IgnorableNamespaces="uap mp">
   <Identity Name="36bcb093-0e11-4114-a4fe-25fc6238d827" Publisher="CN=B901-Marketing" Version="1.0.0.0" />
   <mp:PhoneIdentity PhoneProductId="36bcb093-0e11-4114-a4fe-25fc6238d827" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
@@ -22,14 +21,12 @@
         <uap:SplashScreen Image="Assets\SplashScreen.png" />
       </uap:VisualElements>
       <Extensions>
-        <!--in process app service-->
-        <uap:Extension Category="windows.appService">
-          <uap:AppService Name="com.msi.spb.appservice" />
+        <uap:Extension Category="windows.appService" EntryPoint="AppServiceComponent.AppServiceTask">
+          <uap:AppService Name="com.msi.spb.appservice.outproc" />
         </uap:Extension>
-        <!--out process app service-->
-        <!--<uap:Extension Category="windows.appService" EntryPoint="AppServiceComponent.AppServiceTask">
-          <uap:AppService Name="com.msi.spb.appservice" />
-        </uap:Extension>-->
+        <uap:Extension Category="windows.appService">
+          <uap:AppService Name="com.msi.spb.appservice.inproc" />
+        </uap:Extension>
       </Extensions>
     </Application>
   </Applications>

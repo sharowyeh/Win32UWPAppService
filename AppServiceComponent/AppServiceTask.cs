@@ -18,14 +18,37 @@ namespace AppServiceComponent
     {
         private BackgroundTaskDeferral backgroundTaskDeferral;
 
+        /// <summary>
+        /// Request responsed event handler for in-process app service
+        /// </summary>
         public event TypedEventHandler<ValueSet, ValueSet> RequestResponsed;
 
         public void Run(IBackgroundTaskInstance taskInstance)
         {
             this.backgroundTaskDeferral = taskInstance.GetDeferral();
-            taskInstance.Canceled += TaskInstance_Canceled;
+            taskInstance.Canceled += async (sender, args) =>
+            {
+                /// In in-proc app service, save logging file may be written in app life cycle
+                /// In out-proc app service, save logging file may be written in this way? (file will be created each 25 seconds...)
+                var logFile = await Log.Instance.SaveFile();
+                System.Diagnostics.Debug.WriteLineIf(logFile != null, "logging file:" + logFile.Path);
+
+                if (this.backgroundTaskDeferral != null)
+                    this.backgroundTaskDeferral.Complete();
+            };
             var details = taskInstance.TriggerDetails as AppServiceTriggerDetails;
+            /// Run has different instance by different app service name for out-proc and in-proc background task
+            /// log session also needs to create different instance to save file
+            System.Diagnostics.Debug.WriteLine("task instance:" + taskInstance.InstanceId.ToString());
+            System.Diagnostics.Debug.WriteLine("service name:" + details.Name + " caller:" + details.CallerPackageFamilyName);
+            Log.UniqueId = Windows.ApplicationModel.Package.Current.DisplayName + "-task" + details.Name.Substring(details.Name.LastIndexOf('.'));
+            Log.Instance.MessageInfo("task instance:" + taskInstance.InstanceId.ToString() + ", service name:" + details.Name + " caller:" + details.CallerPackageFamilyName);
             details.AppServiceConnection.RequestReceived += AppServiceConnection_RequestReceived;
+            Windows.ApplicationModel.Core.CoreApplication.UnhandledErrorDetected += (sender, args) =>
+            {
+                System.Diagnostics.Debug.WriteLine("Unhandled:" + sender.ToString());
+                System.Diagnostics.Debug.WriteLine("Exception:" + args.UnhandledError.ToString());
+            };
         }
 
         private ApplicationDataContainer GetDataContainer(string name)
@@ -33,12 +56,11 @@ namespace AppServiceComponent
             try
             {
                 var settings = ApplicationData.Current.LocalSettings;
-                ApplicationDataContainer container = null;
+                var container = settings.CreateContainer(name, ApplicationDataCreateDisposition.Always);
                 if (settings.Containers.ContainsKey(name))
-                    container = settings.Containers[name];
+                    return container;
                 else
-                    container = settings.CreateContainer(name, ApplicationDataCreateDisposition.Always);
-                return container;
+                    throw new Exception("container name:" + name + " does not created");
             }
             catch (Exception e)
             {
@@ -72,6 +94,12 @@ namespace AppServiceComponent
                 var action = message["action"] as string;
                 switch (action)
                 {
+                    case "set_caller":
+                        response = ResponseSetCaller(message);
+                        break;
+                    case "get_caller":
+                        response = ResponseGetCaller(message);
+                        break;
                     case "set_client":
                         response = ResponseSetClient(message);
                         break;
@@ -83,9 +111,7 @@ namespace AppServiceComponent
                         break;
                     default:
                         throw new Exception("Invalid action");
-                        break;
                 }
-
             }
             catch (Exception e)
             {
@@ -93,11 +119,17 @@ namespace AppServiceComponent
             }
             
             await args.Request.SendResponseAsync(response);
-            
             messageDeferral.Complete();
             
-            if (RequestResponsed != null)
-                RequestResponsed(message, response);
+            try
+            {
+                if (RequestResponsed != null)
+                    RequestResponsed(message, response);
+            }
+            catch (Exception e)
+            {
+                Log.Instance.MessageError(e.Message + "\n" + e.StackTrace);
+            }
         }
 
         private ValueSet ResponseException(string error)
@@ -124,6 +156,48 @@ namespace AppServiceComponent
             return response;
         }
 
+        private ValueSet ResponseSetCaller(ValueSet message)
+        {
+            var response = new ValueSet();
+            try
+            {
+                var caller_id = message["caller_id"] as string;
+                var timestamp = message["timestamp"] as string;
+                var key = "caller_" + caller_id;
+                ApplicationData.Current.LocalSettings.Values[key] = timestamp;
+
+                response.Add("status", "ok");
+            }
+            catch (Exception e)
+            {
+                response = ResponseException(e.Message + "\n" + e.StackTrace);
+            }
+            return response;
+        }
+
+        private ValueSet ResponseGetCaller(ValueSet message)
+        {
+            var response = new ValueSet();
+            try
+            {
+                foreach (var pair in ApplicationData.Current.LocalSettings.Values)
+                {
+                    if (pair.Key.StartsWith("caller_"))
+                    {
+                        var caller_id = pair.Key.Substring(7);
+                        response.Add(caller_id, pair.Value);
+                    }
+                }
+
+                response.Add("status", "ok");
+            }
+            catch (Exception e)
+            {
+                response = ResponseException(e.Message + "\n" + e.StackTrace);
+            }
+            return response;
+        }
+
         private ValueSet ResponseSetClient(ValueSet message)
         {
             var response = new ValueSet();
@@ -138,8 +212,9 @@ namespace AppServiceComponent
                 composite["platform"] = client["platform"];
                 composite["name"] = client["name"];
                 composite["timestamp"] = client["timestamp"];
-
+                
                 var key = client["assembly"] as string;
+                //onecore\base\appmodel\statemanager\apiset\lib\stateatom.cpp(561)\kernelbase.dll!00007FF806D08D63: (caller: 00007FF806D443BF) ReturnHr(1) tid(44ec) 8007007A The data area passed to a system call is too small.
                 container.Values[key] = composite;
 
                 response.Add("status", "ok");
@@ -179,12 +254,6 @@ namespace AppServiceComponent
                 response = ResponseException(e.Message + "\n" + e.StackTrace);
             }
             return response;
-        }
-
-        private void TaskInstance_Canceled(IBackgroundTaskInstance sender, BackgroundTaskCancellationReason reason)
-        {
-            if (this.backgroundTaskDeferral != null)
-                this.backgroundTaskDeferral.Complete();
         }
     }
 }
