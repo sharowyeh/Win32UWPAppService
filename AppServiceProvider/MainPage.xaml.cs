@@ -126,7 +126,7 @@ namespace AppServiceProvider
                 foreach (var pair in response)
                 {
                     if (pair.Key.Equals("status"))
-                        break;
+                        continue;
                     chunk += "caller: " + pair.Key + " timestamp: " + pair.Value.ToString() + "\n";
                 }
                 responseText.Text = chunk;
