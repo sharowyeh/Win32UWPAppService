@@ -33,6 +33,10 @@ namespace AppServiceProvider
         }
 
         /// <summary>
+        /// Handler from app service has responsed client's request
+        /// </summary>
+        public static event TypedEventHandler<ValueSet, ValueSet> AppService_RequestResponsed;
+        /// <summary>
         /// startup app service when the background task activated from other applications
         /// https://docs.microsoft.com/en-us/windows/uwp/launch-resume/convert-app-service-in-process
         /// </summary>
@@ -40,31 +44,15 @@ namespace AppServiceProvider
         protected override void OnBackgroundActivated(BackgroundActivatedEventArgs args)
         {
             base.OnBackgroundActivated(args);
-            /// code block is moved to mainpage.xaml.cs for UI display
-            //var ServiceTask = new AppServiceComponent.AppServiceTask();
-            //ServiceTask.RequestResponsed += async (message, response) =>
-            //{
-            //    await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.High, async () =>
-            //    {
-            //        var message_content = "message:" + message["action"] as string;
-            //        var response_content = "response:" + response["status"] as string;
-            //        if (message["action"].Equals("set_client"))
-            //        {
-            //            var client = message["client"] as ValueSet;
-            //            message_content += " " + client["assembly"].ToString() + " " + client["platform"].ToString();
-            //        }
-            //        if (message["action"].Equals("get_client"))
-            //        {
-            //            var list = response["list"] as ValueSet;
-            //            response_content += " " + list.Keys.Count.ToString() + "=>";
-            //            foreach (var key in list.Keys)
-            //                response_content += key + ",";
-            //        }
-            //        Windows.UI.Popups.MessageDialog dialog = new Windows.UI.Popups.MessageDialog(message_content + "\r\n" + response_content);
-            //        await dialog.ShowAsync();
-            //    });
-            //};
-            //ServiceTask.Run(args.TaskInstance);
+            /// Implement app service task when background task activated
+            var ServiceTask = new AppServiceComponent.AppServiceTask();
+            ServiceTask.RequestResponsed += (request, response) =>
+            {
+                /// Raise event in app scope for UI pages handling event
+                if (AppService_RequestResponsed != null)
+                    AppService_RequestResponsed(request, response);
+            };
+            ServiceTask.Run(args.TaskInstance);
         }
 
         /// <summary>

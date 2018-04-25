@@ -9,6 +9,9 @@
 
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <StackPanel Orientation="Vertical" Margin="20">
+            <TextBlock Text="service activation:"/>
+            <TextBlock x:Name="activationText"/>
+            <Border Height="50"/>
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="service name: "/>
                 <TextBox x:Name="serviceNameText" Text="com.msi.spb.appservice.inproc" IsTabStop="False"/>
@@ -18,23 +21,19 @@
                 <TextBox x:Name="packageNameText" IsTabStop="False"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal">
-                <TextBlock Text="status: "/>
+                <TextBlock Text="service status: "/>
                 <TextBlock x:Name="statusText"/>
             </StackPanel>
             <Button x:Name="cleanButton" Content="cleanup data"/>
             <TextBlock Text="named client to app service: "/>
             <StackPanel Orientation="Horizontal">
-                <TextBlock Text="name: "/>
-                <TextBox x:Name="inputText" Text="jane doe" Width="150"/>
-                <Button x:Name="setButton" Content="set"/>
+                <TextBlock Text="content: "/>
+                <TextBox x:Name="contentText" Text="jane doe is anonymous" Width="200"/>
+                <Button x:Name="writeButton" Content="write"/>
             </StackPanel>
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="response: "/>
-                <Button x:Name="getButton" Content="get"/>
-            </StackPanel>
+            <Button x:Name="readButton" Content="read"/>
+            <TextBlock Text="response: "/>
             <TextBlock x:Name="responseText"/>
-            <TextBlock Text="activation:"/>
-            <TextBlock x:Name="activationText"/>
         </StackPanel>
     </Grid>
 </Page>

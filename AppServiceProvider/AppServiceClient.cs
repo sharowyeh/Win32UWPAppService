@@ -7,7 +7,7 @@ using Windows.ApplicationModel.AppService;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
 
-namespace AppServiceComponent
+namespace AppServiceProvider
 {
     public sealed class AppServiceClient
     {

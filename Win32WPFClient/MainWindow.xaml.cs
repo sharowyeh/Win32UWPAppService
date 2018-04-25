@@ -29,27 +29,30 @@ namespace Win32WPFClient
         public MainWindow()
         {
             InitializeComponent();
-
-            // Starts connection when it needs send message
-            //Task.Factory.StartNew(async ()=>
-            //{
-            //    await OpenAppServiceConnection();
-            //});
             
-            setButton.Click += SetButton_Click;
-            getButton.Click += GetButton_Click;
+            /// UWP App Service Provider project defined both inproc and outproc app service declarations,
+            /// change either service name to see what is different
+            //serviceNameText.Text = "com.msi.spb.appservice.inproc";
+            serviceNameText.Text = "com.msi.spb.appservice.outproc";
+            packageNameText.Text = "36bcb093-0e11-4114-a4fe-25fc6238d827_7wtyq8e5t5wne";
+
+            writeButton.Click += WriteButton_Click;
+            readButton.Click += ReadButton_Click;
             cleanButton.Click += CleanButton_Click;
         }
 
         /// <summary>
-        /// App service connection is based on background task that will be closed in 25 seconds automatically after its opening
+        /// App service connection is based on background task that will be closed in 25 seconds automatically after its opening.
+        /// Designed connection behavior is:
+        /// Open service connection just before it needs to be send message, and store connection status for each action.
         /// </summary>
         /// <returns></returns>
         public async Task OpenAppServiceConnection()
         {
             serviceConnection = new AppServiceConnection();
-            serviceConnection.AppServiceName = "com.msi.spb.appservice.outproc";
-            serviceConnection.PackageFamilyName = "36bcb093-0e11-4114-a4fe-25fc6238d827_7wtyq8e5t5wne";
+            serviceConnection.AppServiceName = serviceNameText.Text;
+            serviceConnection.PackageFamilyName = packageNameText.Text;
+            /// Receive app service closed event to update connection status
             serviceConnection.ServiceClosed += async (sender, e) =>
             {
                 await Dispatcher.InvokeAsync(() =>
@@ -60,18 +63,18 @@ namespace Win32WPFClient
                         serviceConnection.Dispose();
                         serviceConnection = null;
                     }
-                    statusText.Text = "Closed";
+                    statusText.Text = "ServiceClosed";
                 }, System.Windows.Threading.DispatcherPriority.Send);
             };
 
             serviceStatus = await serviceConnection.OpenAsync();
-            statusText.Text = serviceStatus.ToString();
             if (serviceStatus != AppServiceConnectionStatus.Success)
             {
-                MessageBox.Show("App service connection failed: " + serviceStatus.ToString());
+                System.Diagnostics.Debug.WriteLine("App service connection failed: " + serviceStatus.ToString());
                 serviceConnection.Dispose();
                 serviceConnection = null;
             }
+            statusText.Text = serviceStatus.ToString();
         }
 
         private async Task<ValueSet> SendMessageToAppService(ValueSet message)
@@ -91,62 +94,57 @@ namespace Win32WPFClient
             }
         }
 
-        private async void SetButton_Click(object sender, RoutedEventArgs e)
+        private void DisplayResponse(string action, ValueSet response)
         {
-            if (inputText.Text.Length == 0)
+            if (response == null)
+            {
+                responseText.Text = "response is null";
+                return;
+            }
+
+            var chunk = "action: " + action + "\n";
+            foreach (var pair in response)
+            {
+                chunk += pair.Key + ": " + pair.Value.ToString() + "\n";
+            }
+            responseText.Text = chunk;
+        }
+
+        private async void WriteButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (contentText.Text.Length == 0)
                 return;
 
-            //var client = new ValueSet();
-            //client.Add("assembly", System.Reflection.Assembly.GetExecutingAssembly().FullName.Split(',')[0]);
-            //client.Add("platform", "wpf");
-            //client.Add("name", inputText.Text);
-            //client.Add("timestamp", DateTime.Now.ToString());
-            //var message = new ValueSet();
-            //message.Add("action", "set_client");
-            //message.Add("container_name", "data_store");
-            //message.Add("client", client);
             var message = new ValueSet();
-            message.Add("action", "set_caller");
-            message.Add("caller_id", "WPF-" + System.Reflection.Assembly.GetExecutingAssembly().FullName.Split(',')[0]);
+            message.Add("action", "write_data");
+            message.Add("caller", "WPF-" + System.Reflection.Assembly.GetExecutingAssembly().FullName.Split(',')[0]);
+            message.Add("content", contentText.Text);
             message.Add("timestamp", DateTime.Now.ToString());
 
             var response = await SendMessageToAppService(message);
+            DisplayResponse("read_data", response);
         }
 
-        private async void GetButton_Click(object sender, RoutedEventArgs e)
+        private async void ReadButton_Click(object sender, RoutedEventArgs e)
         {
-            //var message = new ValueSet();
-            //message.Add("action", "get_client");
-            //message.Add("container_name", "data_store");
             var message = new ValueSet();
-            message.Add("action", "get_caller");
+            message.Add("action", "read_data");
+            message.Add("caller", "WPF-" + System.Reflection.Assembly.GetExecutingAssembly().FullName.Split(',')[0]);
+            message.Add("timestamp", DateTime.Now.ToString());
 
             var response = await SendMessageToAppService(message);
-            if (response != null && response.ContainsKey("status") && response["status"].Equals("ok"))
-            {
-                var chunk = "";
-                //var list = response["list"] as ValueSet;
-                //foreach (var pair in list)
-                //{
-                //    var item = pair.Value as ValueSet;
-                //    chunk += pair.Key + " name: " + item["name"].ToString() + " platform: " + item["platform"].ToString() + " at " + item["timestamp"].ToString() + "\n";
-                //}
-                foreach (var pair in response)
-                {
-                    if (pair.Key.Equals("status"))
-                        continue;
-                    chunk += "caller: " + pair.Key + " timestamp: " + pair.Value.ToString() + "\n";
-                }
-                responseText.Text = chunk;
-            }
+            DisplayResponse("read_data", response);
         }
 
         private async void CleanButton_Click(object sender, RoutedEventArgs e)
         {
             var message = new ValueSet();
             message.Add("action", "clean_data");
-            message.Add("container_name", "data_store");
+            message.Add("caller", "WPF-" + System.Reflection.Assembly.GetExecutingAssembly().FullName.Split(',')[0]);
+            message.Add("timestamp", DateTime.Now.ToString());
+
             var response = await SendMessageToAppService(message);
+            DisplayResponse("read_data", response);
         }
     }
 }

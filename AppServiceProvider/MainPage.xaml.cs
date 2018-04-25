@@ -31,38 +31,26 @@ namespace AppServiceProvider
         public MainPage()
         {
             this.InitializeComponent();
-            
-            /// startup in-process app service when the background task activated from other applications
-            /// https://docs.microsoft.com/en-us/windows/uwp/launch-resume/convert-app-service-in-process
-            Windows.ApplicationModel.Core.CoreApplication.BackgroundActivated += (sender, args) =>
+
+            /// Handling app service responsed event to show on UI
+            App.AppService_RequestResponsed += async (request, response) =>
             {
-                var ServiceTask = new AppServiceComponent.AppServiceTask();
-                ServiceTask.RequestResponsed += async (message, response) =>
+                await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.High, () =>
                 {
-                    await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.High, () =>
-                    {
-                        var message_content = "message:" + message["action"] as string;
-                        var response_content = "response:" + response["status"] as string;
-                        //if (message["action"].Equals("set_client"))
-                        //{
-                        //    var client = message["client"] as ValueSet;
-                        //    message_content += " " + client["assembly"].ToString() + " " + client["platform"].ToString();
-                        //}
-                        //if (message["action"].Equals("get_client"))
-                        //{
-                        //    var list = response["list"] as ValueSet;
-                        //    response_content += " " + list.Keys.Count.ToString() + "=>";
-                        //    foreach (var key in list.Keys)
-                        //        response_content += key + ",";
-                        //}
-                        activationText.Text = message_content + "\n" + response_content;
-                    });
-                };
-                ServiceTask.Run(args.TaskInstance);
+                    var caller = "caller: " + request["caller"] as string;
+                    var action = "action: " + request["action"] as string;
+                    var timestamp = "timestamp: " + request["timestamp"] as string;
+                    var request_content = string.Format("request:\n  {0}\n  {1}\n  {2}", caller, action, timestamp);
+                    var status = "status: " + response["status"] as string;
+                    var response_content = string.Format("response:\n  {0}", status);
+                    activationText.Text = request_content + "\n" + response_content;
+                });
             };
 
-            /// Can use each of inproc and outproc looks what is different
+            /// UWP App Service Provider project defined both inproc and outproc app service declarations,
+            /// change either service name to see what is different
             serviceNameText.Text = "com.msi.spb.appservice.inproc";
+            //serviceNameText.Text = "com.msi.spb.appservice.outproc";
             packageNameText.Text = Windows.ApplicationModel.Package.Current.Id.FamilyName;
 
             serviceClient = new AppServiceClient(serviceNameText.Text, packageNameText.Text);
@@ -70,75 +58,74 @@ namespace AppServiceProvider
             {
                 await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.High, new Windows.UI.Core.DispatchedHandler(() =>
                 {
-                    statusText.Text = "Closed";
+                    statusText.Text = "ServiceClosed";
                 }));
             };
-            serviceClient.ConnectionFailed += (sender, e) =>
+            serviceClient.ConnectionFailed += async (sender, e) =>
             {
-                statusText.Text = sender.ToString();
+                await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.High, new Windows.UI.Core.DispatchedHandler(() =>
+                {
+                    /// Sender is AppServiceConnectionStatus or AppServiceResponseStatus
+                    statusText.Text = sender.ToString();
+                }));
             };
 
-            setButton.Click += SetButton_Click;
-            getButton.Click += GetButton_Click;
+            writeButton.Click += WriteButton_Click;
+            readButton.Click += ReadButton_Click;
             cleanButton.Click += CleanButton_Click;
         }
 
-        private async void SetButton_Click(object sender, RoutedEventArgs e)
+        private void DisplayResponse(string action, ValueSet response)
         {
-            if (inputText.Text.Length == 0)
+            if (response == null)
+            {
+                responseText.Text = "response is null";
                 return;
+            }
 
-            //var client = new ValueSet();
-            //client.Add("assembly", Windows.ApplicationModel.Package.Current.DisplayName);
-            //client.Add("platform", "uwp");
-            //client.Add("name", inputText.Text);
-            //client.Add("timestamp", DateTime.Now.ToString());
-            //var message = new ValueSet();
-            //message.Add("action", "set_client");
-            //message.Add("container_name", "data_store");
-            //message.Add("client", client);
+            var chunk = "action: " + action + "\n";
+            foreach (var pair in response)
+            {
+                chunk += pair.Key + ": " + pair.Value.ToString() + "\n";
+            }
+            responseText.Text = chunk;
+        }
+
+        private async void WriteButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (contentText.Text.Length == 0)
+                return;
+            
             var message = new ValueSet();
-            message.Add("action", "set_caller");
-            message.Add("caller_id", "UWP-" + Windows.ApplicationModel.Package.Current.DisplayName);
+            message.Add("action", "write_data");
+            message.Add("caller", "UWP-" + Windows.ApplicationModel.Package.Current.DisplayName);
+            message.Add("content", contentText.Text);
             message.Add("timestamp", DateTime.Now.ToString());
 
             var response = await serviceClient.OpenAndSendMessage(message);
+            DisplayResponse("write_data", response);
         }
 
-        private async void GetButton_Click(object sender, RoutedEventArgs e)
+        private async void ReadButton_Click(object sender, RoutedEventArgs e)
         {
-            //var message = new ValueSet();
-            //message.Add("action", "get_client");
-            //message.Add("container_name", "data_store");
             var message = new ValueSet();
-            message.Add("action", "get_caller");
+            message.Add("action", "read_data");
+            message.Add("caller", "UWP-" + Windows.ApplicationModel.Package.Current.DisplayName);
+            message.Add("timestamp", DateTime.Now.ToString());
             
             var response = await serviceClient.OpenAndSendMessage(message);
-            if (response != null && response.ContainsKey("status") && response["status"].Equals("ok"))
-            {
-                var chunk = "";
-                //var list = response["list"] as ValueSet;
-                //foreach (var pair in list)
-                //{
-                //    var item = pair.Value as ValueSet;
-                //    chunk += pair.Key + " name: " + item["name"].ToString() + " platform: " + item["platform"].ToString() + " at " + item["timestamp"].ToString() + "\n";
-                //}
-                foreach (var pair in response)
-                {
-                    if (pair.Key.Equals("status"))
-                        continue;
-                    chunk += "caller: " + pair.Key + " timestamp: " + pair.Value.ToString() + "\n";
-                }
-                responseText.Text = chunk;
-            }
+            DisplayResponse("read_data", response);
         }
         
         private async void CleanButton_Click(object sender, RoutedEventArgs e)
         {
             var message = new ValueSet();
             message.Add("action", "clean_data");
-            message.Add("container_name", "data_store");
+            message.Add("caller", "UWP-" + Windows.ApplicationModel.Package.Current.DisplayName);
+            message.Add("timestamp", DateTime.Now.ToString());
+
             var response = await serviceClient.OpenAndSendMessage(message);
+            DisplayResponse("clean_data", response);
         }
     }
 }

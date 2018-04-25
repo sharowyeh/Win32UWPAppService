@@ -6,7 +6,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <EnableUnmanagedDebugging>true</EnableUnmanagedDebugging>
-    <DoNotLaunchApp>true</DoNotLaunchApp>
+    <DoNotLaunchApp>false</DoNotLaunchApp>
     <CreateCleanLayout>false</CreateCleanLayout>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|ARM'">

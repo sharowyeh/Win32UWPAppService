@@ -17,20 +17,17 @@
                 <TextBox x:Name="packageNameText" Text="36bcb093-0e11-4114-a4fe-25fc6238d827_7wtyq8e5t5wne" IsTabStop="False"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal">
-                <TextBlock Text="status: "/>
+                <TextBlock Text="service status: "/>
                 <TextBlock x:Name="statusText"/>
             </StackPanel>
             <Button x:Name="cleanButton" Content="cleanup data" HorizontalAlignment="Left"/>
-            <TextBlock Text="named client to app service: "/>
             <StackPanel Orientation="Horizontal">
-                <TextBlock Text="name: "/>
-                <TextBox x:Name="inputText" Text="john smith" Width="150"/>
-                <Button x:Name="setButton" Content="set"/>
+                <TextBlock Text="content: "/>
+                <TextBox x:Name="contentText" Text="john smith is anonymous too" Width="200"/>
+                <Button x:Name="writeButton" Content="write"/>
             </StackPanel>
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="response: "/>
-                <Button x:Name="getButton" Content="get"/>
-            </StackPanel>
+            <Button x:Name="readButton" Content="read" HorizontalAlignment="Left"/>
+            <TextBlock Text="response: "/>
             <TextBlock x:Name="responseText"/>
         </StackPanel>
     </Grid>
